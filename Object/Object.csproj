@@ -5,5 +5,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+  <!-- Let the SDK implicitly include C# source files under the project directory -->
+  <ItemGroup>
+    <!-- Object project should only contain model classes and not reference other projects -->
+  </ItemGroup>
 
 </Project>

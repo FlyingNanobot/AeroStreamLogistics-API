@@ -5,9 +5,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+  <!-- Rely on implicit SDK include to compile source files in this project -->
   <ItemGroup>
-    <ProjectReference Include="../Object/Object.csproj" />
-    <ProjectReference Include="../Repository/Repository.csproj" />
+    <ProjectReference Include="..\Object\Object.csproj" />
   </ItemGroup>
 
 </Project>
