@@ -1,12 +1,22 @@
+using Amazon;
+using Amazon.S3;
+using Business.Concrete;
+using Business.Contract;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.IdentityModel.Tokens;
+using Npgsql;
+using OpenSearch.Client;
+using OpenSearch.Net;
+using Repository.Concrete;
+using Repository.Contract;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // ------------------------------------------------------------
-// 1. CORS (Allow your Blazor Server UI)
+// 1. CORS
 // ------------------------------------------------------------
 builder.Services.AddCors(options =>
 {
@@ -22,7 +32,7 @@ builder.Services.AddCors(options =>
 });
 
 // ------------------------------------------------------------
-// 2. Authentication (Microsoft Entra ID / Azure AD)
+// 2. Authentication (Azure AD)
 // ------------------------------------------------------------
 var azureAd = builder.Configuration.GetSection("AzureAd");
 var tenantId = azureAd["TenantId"];
@@ -43,14 +53,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-
 // ------------------------------------------------------------
-// 3. Authorization (Policies optional)
+// 3. Authorization
 // ------------------------------------------------------------
 builder.Services.AddAuthorization();
 
 // ------------------------------------------------------------
-// 4. Controllers (Global auth filter)
+// 4. Controllers
 // ------------------------------------------------------------
 builder.Services.AddControllers(options =>
 {
@@ -68,15 +77,47 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // ------------------------------------------------------------
-// 6. Dependency Injection
+// 6. Database Clients (IMPORTANT)
 // ------------------------------------------------------------
-builder.Services.AddSingleton<Repository.Contract.ITelemetryRepository, Repository.Concrete.TelemetryRepository>();
-builder.Services.AddScoped<Business.Contract.ITelemetryService, Business.Concrete.TelemetryService>();
+
+// Redis client
+builder.Services.AddScoped<IRedisTelemetryService, RedisTelemetryService>();
+
+// OpenSearch client
+builder.Services.AddScoped<IOpenSearchTelemetryService, OpenSearchTelemetryService>();
+
+// Postgres client
+builder.Services.AddScoped<IPostgresTelemetryService, PostgresTelemetryService>();
+
+// S3 client
+builder.Services.AddScoped<IS3ArchiveService, S3ArchiveService>();
+
+// ------------------------------------------------------------
+// 7. Repository Layer
+// ------------------------------------------------------------
+builder.Services.AddSingleton<IRedisTelemetryRepository>(
+    sp => new RedisTelemetryRepository(builder.Configuration["Redis:Connection"])
+);
+builder.Services.AddSingleton<IOpenSearchTelemetryRepository>(
+    sp => new OpenSearchTelemetryRepository(builder.Configuration["OpenSearch:Url"])
+);
+builder.Services.AddSingleton<IPostgresTelemetryRepository>(
+    sp => new PostgresTelemetryRepository(builder.Configuration["Postgres:ConnectionString"])
+);
+builder.Services.AddSingleton<IS3ArchiveRepository>(
+    sp => new S3ArchiveRepository(
+        builder.Configuration["S3:AccessKey"],
+        builder.Configuration["S3:SecretAccessKey"],
+        builder.Configuration["S3:BucketName"],
+        builder.Configuration["S3:Region"]
+    )
+);
+
 
 var app = builder.Build();
 
 // ------------------------------------------------------------
-// 7. Middleware Pipeline (Correct Order)
+// 8. Middleware Pipeline
 // ------------------------------------------------------------
 app.UseSwagger();
 app.UseSwaggerUI();
